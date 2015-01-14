@@ -1,0 +1,2 @@
+Cmnd_Alias OPENVPN_ROUTE=/sbin/route
+{{ openvpn_user }} ALL=(ALL) NOPASSWD:OPENVPN_ROUTE

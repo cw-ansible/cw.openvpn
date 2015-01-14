@@ -1,0 +1,44 @@
+# OpenVPN client configuration.
+
+client
+dev tun
+nobind
+
+# First try UDP default connection. Use TCP over https port on failure
+# (mainly due to firewall issues).
+
+
+{% for mode in item.0.server_modes %}
+<connection>
+remote {{ item.0.server.host }} {{ item.0.server[mode + '_port'] | default(1194) }} {{ mode }}
+{%   if mode == "tcp" %}
+connect-retry 5
+connect-timeout 10
+{%   endif %}
+</connection>
+{% endfor %}
+
+persist-key
+persist-tun
+
+comp-lzo
+pull
+
+#auth-user-pass
+
+# Certificates
+<ca>
+{{ item.0.ca }}
+</ca>
+
+<cert>
+{{ item.0.cert }}
+</cert>
+
+<key>
+{{ item.0.key }}
+</key>
+
+<tls-auth>
+{{ item.0.tls_auth }}
+</tls-auth>

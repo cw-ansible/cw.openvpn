@@ -1,0 +1,118 @@
+---
+
+- name: Create OpenVPN configuration directory on server
+  file:
+    dest: '/etc/openvpn/{{ item.name }}'
+    mode: '0700'
+    owner: '{{ openvpn_user }}'
+    group: '{{ openvpn_user }}'
+    state: directory
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+
+
+## Server configuration
+  
+- name: create backuppc user on server
+  user:
+    name={{openvpn_user}}
+    comment='{{openvpn_comment}}'
+    system=yes
+    home={{openvpn_home}}
+    state=present
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+
+- name: Create client configuration on server
+  template:
+    src: etc/sudoers.d/openvpn
+    dest: /etc/sudoers.d/openvpn
+    mode: '0440'
+    owner: root
+    group: root
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+  
+- name: copy OpenVPN client connect helper
+  copy:
+    src: etc/openvpn/client-connect
+    dest: /etc/openvpn/client-connect
+    mode: '0700'
+    owner: '{{ openvpn_user }}'
+    group: '{{ openvpn_user }}'
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+
+- name: copy OpenVPN client authenticator helper
+  copy:
+    src: etc/openvpn/auth-user-pass-verify
+    dest: /etc/openvpn/auth-user-pass-verify
+    mode: '0700'
+    owner: '{{ openvpn_user }}'
+    group: '{{ openvpn_user }}'
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+
+- name: Create OpenVPN client configuration dir
+  file:
+    dest: '{{ "/etc/openvpn/" + item.name + "/clients.d"  }}'
+    mode: '0700'
+    owner: '{{ openvpn_user }}'
+    group: '{{ openvpn_user }}'
+    state: directory
+  when: 
+    item.server.host == ansible_fqdn
+  with_items: openvpn_configs
+
+
+- name: Create client configuration on server
+  template:
+    src: etc/openvpn/clients.d/client-conf
+    dest: '{{ "/etc/openvpn/" + item.0.name + "/clients.d/"  +  item.1.name }}'
+  when:  item.0.server.host == ansible_fqdn
+  with_subelements:
+    - openvpn_configs
+    - clients
+  
+- name: Create OpenVPN server configuration files
+  template:
+    src: '{{ item.1.src | default("etc/openvpn/vpn-server")}}'
+    dest: '{{ "/etc/openvpn/" + item.0.name + "/server-"  +  item.1 + ".conf" }}'
+    mode: '{{ item.1.mode | default("0600") }}'
+    owner: '{{ item.1.owner | default(openvpn_user) }}'
+    group: '{{ item.1.group | default(openvpn_user) }}'
+  when:  item.0.server.host == ansible_fqdn
+  notify: openvpn restart
+  with_subelements:
+    - openvpn_configs
+    - server_modes
+
+- name: Create OpenVPN server links
+  file:
+    src: '{{ item.1.dest | default(item.0.name + "/server-" +  item.1 + ".conf" )}}'
+    dest: '/etc/openvpn/{{ item.0.name }}-{{ item.1 }}.conf'
+    state: link
+  when:  item.0.server.host == ansible_fqdn
+  notify: openvpn restart
+  with_subelements:
+    - openvpn_configs
+    - server_modes
+
+
+## Client configuration
+    
+- name: Create client configuration
+  template:
+    src: '{{ item.1.src | default("etc/openvpn/vpn-client")}}'
+    dest: '{{ "/etc/openvpn/" + item.0.name + ".conf" }}'
+  when:  item.1.name == ansible_fqdn
+  notify: openvpn restart
+  with_subelements:
+    - openvpn_configs
+    - clients
+

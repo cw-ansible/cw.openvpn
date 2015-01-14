@@ -1,0 +1,133 @@
+# OpenVPN configuration for Unix server.
+
+# copy all files to /etc/openvpn/@@CN@@ and create a symlink /etc/openvpn
+# ln -nfs @@CN@@/server.ovpn @@CN@@.conf
+
+# On linux simply run /etc/init.d/openvpn start @@CN@@
+
+# On openbsd create a file /etc/hostname.tun0 containing:
+#
+# up
+# ! /usr/local/sbin/openvpn --daemon @@CN@@ --cd /etc/openvpn/@@CN@@ --config server.ovpn 
+#
+# To start openvpn simply run:
+# sh /etc/netstart tun0
+
+cd /etc/openvpn/{{ item.0.name }}
+
+mode server
+tls-server
+user _openvpn
+group _openvpn
+
+# Should be explicitely named on OpenBSD
+dev tun
+local {{ item.0.server.host }}
+proto {% if item.1 == "tcp" %}tcp-server{% else %}{{ item.1 }}{% endif %} 
+port  {{ item.0.server[item.1 + '_port'] | default(1194) }}
+
+# server param
+
+# Arbitrary convention
+# Use A.B.C.1 A.B.C.2 for UDP:1194
+# Use A.B.C.5 A.B.C.6 for TCP:443
+ifconfig {{ item.0.server[item.1 + '_ip'] }}
+
+# VPN network via DHCP
+# Example of ip ranges to use
+# 10.0.0.0/8
+# 172.16.0.0/12
+# 192.168.0.0 /16
+
+
+# If you use a custom script to check user passwords
+script-security 2
+# auth-user-pass-verify auth-user-pass-verify via-env
+
+# If you use both tcp & udp server you should add/remove routes to clients
+client-connect ../client-connect
+# The client-disconnect is the same as client-connect one
+client-disconnect ../client-connect
+
+# VPN management socket
+# management 0.0.0.0 6969 managerpw
+
+# Certificates
+<ca>
+{{ item.0.ca }}
+</ca>
+
+<cert>
+{{ item.0.cert }}
+</cert>
+
+<key>
+{{ item.0.key }}
+</key>
+
+<dh>
+{{ item.0.dh }}
+</dh>
+
+<tls-auth>
+{{ item.0.tls_auth }}
+</tls-auth>
+
+
+# Uncomment to enable Certificat Revocation List checks
+# Do not forget to update this file as often as needed
+# crl-verify crl.pem
+
+# Client config dir
+client-config-dir clients.d
+
+#push "route delay 2 600"
+
+# This should Push some routes to the clients
+push "route {{ item.0.server.network }}"
+
+# If a default gateway is required (defaut: NO)
+# push "redirect-gateway"
+
+# Other useful configuration stufs
+comp-lzo
+
+# Use this instead of keepalive for better reactivity.
+ping 5
+ping-restart 20
+push "ping 5"
+push "ping-restart 20"
+
+# Limit to 20 clients if uncommented
+# max-clients 20
+
+# Remove this if clients should connect several times
+# duplicate-cn
+
+# Allow clients to see each other
+# client-to-client
+
+# UDP only (not that much useful)
+# mtu-test
+# mssfix 1300
+# fragment 1300
+
+# this should be useful for latency killing connections
+# A better place to define those options would be in per user configuration
+# file.
+# tls-timeout 120
+# hand-window 300
+persist-key
+persist-tun
+
+# Encryption
+# cipher AES-256-CBC
+# engine cryptodev
+
+
+# log features
+# verb 4
+mute 20
+# log-append /var/log/openvpn/@@CN@@.log
+# status     /var/log/openvpn/@@CN@@.status
+# ifconfig-pool-persist /var/log/openvpn/@@CN@@.pool 10
