@@ -45,3 +45,4 @@ openvpn_home: /dev/null
 #   key:  '{{ lookup("file", ("etc/openvpn/" + ansible_hostname + ".key") }}'
 #
 
+openvpn_configs: []
