@@ -14,7 +14,7 @@
 
 ## Server configuration
   
-- name: create backuppc user on server
+- name: create OpenVPN user on server
   user:
     name={{openvpn_user}}
     comment='{{openvpn_comment}}'
